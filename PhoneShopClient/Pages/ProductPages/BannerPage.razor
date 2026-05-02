@@ -1,0 +1,87 @@
+﻿@using PhoneShopSharedLibrary.Responses
+@implements IDisposable
+@if (ProductService.FeaturedProducts is not null)
+{
+    <div class="container-fluid mb-5">
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="card border-info">
+                    @{
+                        Product Banner1 = ProductService.GetRandomProduct();
+                        Product Banner2 = ProductService.GetRandomProduct();
+                    }
+                    <div class="card-header p-3" style="min-height:280px;">
+                        <div class="d-flex justify-content-between">
+                            <div class="text-start">
+                                <h2 style="font-family:Impact">Available On A Cool Price</h2>
+                                <h5 class="text-info">@Banner1.Name</h5>
+                                <p class="text-muted fs-6" style="font-family:Tahoma">@(General.GetDescription(Banner1.Description!))</p>
+                                <h6 class="text-muted">Free Pickup and Delivery Available</h6>
+                                <h5 class="text-danger">@Banner1.Price.ToString("$#.##")</h5>
+                                <button class="btn btn-danger" @onclick="()=>AddToCart(Banner1)">
+                                    <i class="fa fa-cart-shopping"></i> SHOP NOW
+                                </button>
+                            </div>
+                            <img src="@Banner1.Base64Img" width="150" height="200" class="float-end" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card border-primary">
+                    <div class="card-header p-3" style="min-height:280px;">
+                        <div class="d-flex justify-content-between">
+                            <div class="text-start">
+                                <h2 style="font-family:Impact">Secure this <u>Deal</u> Now! </h2>
+                                <h5 class="text-info">@Banner2.Name</h5>
+                                <p class="text-muted fs-6" style="font-family:Tahoma">@(General.GetDescription(Banner2.Description!))</p>
+                                <h6 class="text-muted">Free Pickup and Delivery Available</h6>
+                                <h5 class="text-danger">@Banner2.Price.ToString("$#.##")</h5>
+                                <button class="btn btn-danger" @onclick="()=>AddToCart(Banner2)">
+                                    <i class="fa fa-cart-shopping"></i> SHOP NOW
+                                </button>
+                            </div>
+                            <img src="@Banner2.Base64Img" width="150" height="200" class="float-end" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code{
+
+    protected async override Task OnInitializedAsync()
+    {
+        bool featured = true;
+        await ProductService.GetAllProducts(featured);
+        ProductService.ProductAction += StateHasChanged;
+        messageDialogService.Action += StateHasChanged;
+    }
+
+    async Task AddToCart(Product product)
+    {
+        DisplayResponse(await cartService.AddToCart(product));
+    }
+
+    private void DisplayResponse(ServiceResponse serviceResponse)
+    {
+        if (serviceResponse.Flag)
+            messageDialogService.messageDialog!.SetDialogValues("success", serviceResponse.Message);
+        else
+            messageDialogService.messageDialog!.SetDialogValues("warning", serviceResponse.Message);
+
+        messageDialogService.SetMessageDialog();
+    }
+
+
+
+
+    public void Dispose()
+    {
+        ProductService.ProductAction -= StateHasChanged;
+        messageDialogService.Action -= StateHasChanged;
+    }
+}

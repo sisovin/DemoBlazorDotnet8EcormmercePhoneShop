@@ -1,0 +1,153 @@
+﻿@page "/shopping/cart/my-cart"
+@implements IDisposable
+
+@using PhoneShopClient.PrivateModels
+@using PhoneShopSharedLibrary.Responses
+@if (cartService.IsCartLoaderVisible)
+{
+    <LoadingPage />
+}
+else
+{
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-lg-3">
+                <div class="card">
+                    <div class="card-header">
+                        Cart Summary
+                    </div>
+                    <div class="card-body p-5">
+                        <span>
+                            <sub style="font-size:30px; font-family:Impact">$</sub>
+                            <sup style="font-family:MyFont; font-size:20px;">@MyCartOrders.Sum(_ => _.SubTotal).ToString("#.##") </sup>
+                        </span>
+                    </div>
+                    <div class="card-footer">
+                        <button class="btn btn-lg btn-danger">
+                            <i class="fa fa-cart-arrow-down"></i>
+                            Proceed to Checkout
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-9">
+                <BannerPage />
+                <div class="card">
+                    <div class="card-header">Cart Details</div>
+                    <div class="card-body">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th scope="col">#</th>
+                                    <th scope="col">Image</th>
+                                    <th scope="col">Name</th>
+                                    <th scope="col">Price</th>
+                                    <th scope="col">Quantity</th>
+                                    <th scope="col">SubTotal</th>
+                                    <th scope="col">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (MyCartOrders is not null)
+                                {
+                                    var listData = MyCartOrders.Skip(SkipValue).Take(TakeValue).ToList();
+                                    int count = 1;
+                                    foreach (var item in listData)
+                                    {
+                                        <tr>
+                                            <td>@count</td>
+                                            <td><img src="@item.Image" width="100" height="150" /> </td>
+                                            <td>@item.Name</td>
+                                            <td>@item.Price</td>
+                                            <td> <input type="number" min="1" class="form-control w-25" value="@item.Quantity" @onchange="@(e => HandleChange(e, item))" /> </td>
+                                            <td>@item.SubTotal</td>
+                                            <td>
+                                                 <a id="changeCursor" @onclick="async ()=> await DeleteCart(item)">
+                                                    <i class="fa fa-trash text-danger"></i>
+                                                </a> 
+                                            </td>
+                                        </tr>
+                                        count++;
+                                    }
+                                }
+
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex justify-content-center">
+                        <SfPager @ref="@Page" PageSize=3 NumericItemsCount=4 TotalItemsCount=MyCartOrders!.Count ItemClick="Click"> </SfPager>
+                    </div>
+                </div>
+            </div>
+            <RecommendedPage />
+        </div>
+    </div>
+}
+<MessageDialog @ref="messageDialogService.messageDialog"></MessageDialog>
+<style>
+    #changeCursor {
+        cursor: pointer;
+    }
+</style>
+@code {
+
+    SfPager? Page;
+    public int SkipValue;
+    public int TakeValue = 3;
+
+    List<Order> MyCartOrders = new();
+
+    protected async override Task OnInitializedAsync()
+    {
+        MyCartOrders = await cartService.MyOrders();
+        messageDialogService.Action += StateHasChanged;
+    }
+
+    async Task HandleChange(Microsoft.AspNetCore.Components.ChangeEventArgs e, Order order)
+    {
+        try
+        {
+            if (int.Parse(e.Value!.ToString()!) <= 0 || e.Value.ToString()!.Equals("") || string.IsNullOrWhiteSpace(e.Value.ToString())) return;
+            var getOrder = MyCartOrders.FirstOrDefault(_ => _.Id == order.Id);
+            getOrder!.Quantity = int.Parse(e.Value!.ToString()!);
+
+            //Update quantity
+            DisplayResponse(await cartService.AddToCart(new Product() { Id = order.Id }, getOrder.Quantity));
+
+        }
+        catch { }
+    }
+
+    async Task DeleteCart(Order cart)
+    {
+        bool confirm = await js.InvokeAsync<bool>("confirm", "Are you sure you want to delete this from cart?");
+        if (!confirm) return;
+        MyCartOrders.Remove(MyCartOrders.FirstOrDefault(_ => _.Id == cart.Id)!);
+        DisplayResponse(await cartService.DeleteCart(cart));
+    }
+
+    private void DisplayResponse(ServiceResponse serviceResponse)
+    {
+        if (serviceResponse.Flag)
+            messageDialogService.messageDialog!.SetDialogValues("success", serviceResponse.Message);
+        else
+            messageDialogService.messageDialog!.SetDialogValues("warning", serviceResponse.Message);
+
+        messageDialogService.SetMessageDialog();
+    }
+
+    public void Click(PagerItemClickEventArgs args)
+    {
+        SkipValue = (args.CurrentPage * Page!.PageSize) - Page.PageSize;
+        TakeValue = Page.PageSize;
+    }
+
+
+    public void Dispose()
+    {
+        messageDialogService.Action -= StateHasChanged;
+    }
+
+}
