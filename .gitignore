@@ -60,3 +60,6 @@ pnpm-debug.log*
 
 # EF Core generated SQL scripts or snapshots (optional local)
 *.sql
+
+# UI generated files (if any)
+/ui-ux-pro-max-skill

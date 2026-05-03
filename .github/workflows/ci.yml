@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate repository structure
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $doubleExt = Get-ChildItem -Recurse -File | Where-Object { $_.Name -match "\.md\.md$" }
+          if ($doubleExt) {
+            Write-Host "Found invalid markdown filenames:" -ForegroundColor Red
+            $doubleExt | ForEach-Object { Write-Host " - $($_.FullName)" -ForegroundColor Red }
+            throw "Repository contains .md.md files"
+          }
+
+          $required = @(
+            "SKILL.md",
+            "README.md",
+            "references/A-architecture.md",
+            "references/B-backend.md",
+            "references/C-database.md",
+            "references/D-frontend.md",
+            "references/E-architecture-patterns.md",
+            "references/F-cloud-deploy.md",
+            "references/G-github.md",
+            "references/H-best-practices.md",
+            "scripts/ui-precommit-check.ps1"
+          )
+
+          $missing = @()
+          foreach ($item in $required) {
+            if (-not (Test-Path $item)) {
+              $missing += $item
+            }
+          }
+
+          if ($missing.Count -gt 0) {
+            Write-Host "Missing required files:" -ForegroundColor Red
+            $missing | ForEach-Object { Write-Host " - $_" -ForegroundColor Red }
+            throw "Repository missing required files"
+          }
+
+          Write-Host "Repository structure validation passed." -ForegroundColor Green
+
+      - name: Run UI checker in strict mode
+        shell: pwsh
+        run: |
+          ./scripts/ui-precommit-check.ps1 -Strict -StrictFrameworks React,Vue,Tailwind
